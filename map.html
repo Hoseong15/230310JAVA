@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>지도 생성하기</title>
+    
+</head>
+<body>
+<!-- 지도를 표시할 div 입니다 -->
+<div id="map" style="width:100%;height:100vh;"></div>
+<p id="result"></p>
+<script src="https://code.jquery.com/jquery-2.2.4.js" integrity="sha256-iT6Q9iMJYuQiMWNd9lDyBUStIq/8PuOW33aOqmvFpqI=" crossorigin="anonymous"></script>
+<script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=d40eddffc1b28c164ced52432ce7b11a&libraries=services,clusterer,drawing"></script>
+<script>
+
+var gps_use = null; //gps의 사용가능 여부
+var gps_lat = null; // 위도
+var gps_lng = null; // 경도
+var gps_position; // gps 위치 객체
+var myMap = null;   // 맵 객체
+var infowindow = null;  // info 객체
+
+gps_check();
+// gps가 이용가능한지 체크하는 함수이며, 이용가능하다면 show location 함수를 불러온다.
+// 만약 작동되지 않는다면 경고창을 띄우고, 에러가 있다면 errorHandler 함수를 불러온다.
+// timeout을 통해 시간제한을 둔다.
+function gps_check(){
+    if (navigator.geolocation) {
+        var options = {timeout:60000};
+        navigator.geolocation.getCurrentPosition(showLocation, errorHandler, options);
+    } else {
+        alert("GPS_추적이 불가합니다.");
+        gps_use = false;
+    }
+}
+
+
+// gps 이용 가능 시, 위도와 경도를 반환하는 showlocation함수.
+function showLocation(position) {
+    gps_use = true;
+    gps_lat = position.coords.latitude;
+    gps_lng = position.coords.longitude;
+    makeMap();
+}
+
+
+// error발생 시 에러의 종류를 알려주는 함수.
+function errorHandler(error) {
+    if(error.code == 1) {
+        alert("접근차단");
+    } else if( err.code == 2) {
+        alert("위치를 반환할 수 없습니다.");
+    }
+    gps_use = false;
+    makeMap();
+}
+
+function makeMap(){
+    // 마커를 클릭하면 장소명을 표출할 인포윈도우 입니다
+    infowindow = new kakao.maps.InfoWindow({zIndex:1});
+
+    var mapContainer = document.getElementById('map'), // 지도를 표시할 div 
+    mapOption = { 
+        center: new kakao.maps.LatLng(gps_lat, gps_lng), // 지도의 중심좌표
+        level: 3 // 지도의 확대 레벨
+    };
+
+    // 지도를 표시할 div와  지도 옵션으로  지도를 생성합니다
+    myMap = new kakao.maps.Map(mapContainer, mapOption); 
+
+    // 장소 검색 객체를 생성합니다
+    var ps = new kakao.maps.services.Places(myMap);
+
+    // 카테고리로 식당을 검색합니다
+    ps.categorySearch('FD6', placesSearchCB, {useMapBounds:true});
+
+    // 지도의  레벨을 얻어옵니다
+    var level = myMap.getLevel();
+
+    // 지도의 중심좌표를 얻어옵니다 
+    var latlng = myMap.getCenter(); 
+
+    // 지도 확대 축소를 제어할 수 있는  줌 컨트롤을 생성합니다
+    var zoomControl = new kakao.maps.ZoomControl();
+    myMap.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
+
+    // 지도가 확대 또는 축소되면 마지막 파라미터로 넘어온 함수를 호출하도록 이벤트를 등록합니다
+    kakao.maps.event.addListener(myMap, 'zoom_changed', function() {        
+        // 지도의 현재 레벨을 얻어옵니다
+        var level = myMap.getLevel();
+        var message = '현재 지도 레벨은 ' + level + ' 입니다';
+        var resultDiv = document.getElementById('result');  
+        resultDiv.innerHTML = message;
+    });
+}
+
+// 키워드 검색 완료 시 호출되는 콜백함수 입니다
+function placesSearchCB (data, status, pagination) {
+    if (status === kakao.maps.services.Status.OK) {
+        for (var i=0; i<data.length; i++) {
+            displayMarker(data[i]);    
+        }
+    }
+}
+
+function displayMarker(place) {    
+    // 마커가 표시될 위치입니다 
+    // var markerPosition  = new kakao.maps.LatLng(gps_lat, gps_lng); 
+
+    // 마커를 생성합니다
+    var marker = new kakao.maps.Marker({
+        map: myMap,
+        position: new kakao.maps.LatLng(place.y, place.x) 
+    });
+
+    // 마커에 클릭이벤트를 등록합니다
+    kakao.maps.event.addListener(marker, 'click', function() {
+        // 마커를 클릭하면 장소명이 인포윈도우에 표출됩니다
+        infowindow.setContent('<div style="padding:5px;font-size:12px;">' + place.place_name + '</div>');
+        infowindow.open(myMap, marker);
+    });
+
+    // 마커가 지도 위에 표시되도록 설정합니다
+    marker.setMap(myMap);
+}
+
+</script>
+</body>
+</html>
+
+
